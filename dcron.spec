@@ -1,21 +1,22 @@
 Summary:	Dillon's Cron Daemon
 Name:		dcron
-Version:	2.9
-Release:	%mkrel 2
-License:	GPL
+Version:	3.2
+Release:	%mkrel 1
+License:	GPL+
 Group:		System/Servers
 URL:		http://apollo.backplane.com/FreeSrc/
-Source0:	http://apollo.backplane.com/FreeSrc/dcron29.tar.bz2
+Source0:	http://apollo.backplane.com/FreeSrc/dcron32.tgz
 Source1:	dcron.init.bz2
 Source2:	etc-crontab.bz2
-Patch0:		dcron-2.9-pid_and_mailer.diff
-Patch1:		dcron-2.9-openpkg.diff
+Patch0:		dcron-3.2-pid_and_mailer.diff
+Patch1:		dcron-3.2-openpkg.diff
 Requires(post): rpm-helper
 Requires(preun): rpm-helper
 Requires:	syslog-daemon
 Requires:	sendmail-command
 Conflicts:	vixie-cron
 Conflicts:	crontabs
+Provides:	cron-daemon
 #Provides:	crond, crontabs
 BuildRequires:	dietlibc-devel >= 0.20-1mdk
 BuildRoot:	%{_tmppath}/%{name}-buildroot
@@ -84,5 +85,4 @@ rm -rf %{buildroot}
 %{_mandir}/man1/crontab.1*
 %{_mandir}/man8/crond.8*
 %dir %attr(0755,root,root) /var/spool/dcron/crontabs
-
 
