@@ -18,7 +18,7 @@ Conflicts:	vixie-cron
 Conflicts:	crontabs
 Provides:	cron-daemon
 #Provides:	crond, crontabs
-BuildRequires:	dietlibc-devel >= 0.20-1mdk
+BuildRequires:	dietlibc-devel
 BuildRoot:	%{_tmppath}/%{name}-buildroot
 
 %description
