@@ -19,7 +19,6 @@ Conflicts:	crontabs
 Provides:	cron-daemon
 #Provides:	crond, crontabs
 BuildRequires:	dietlibc-devel
-BuildRoot:	%{_tmppath}/%{name}-buildroot
 
 %description
 A multiuser cron written from scratch, dcron is follows concepts
