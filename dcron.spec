@@ -1,7 +1,7 @@
 Summary:	Dillon's Cron Daemon
 Name:		dcron
 Version:	3.2
-Release:	%mkrel 1
+Release:	%mkrel 2
 License:	GPL+
 Group:		System/Servers
 URL:		http://apollo.backplane.com/FreeSrc/
@@ -19,7 +19,7 @@ Conflicts:	crontabs
 Provides:	cron-daemon
 #Provides:	crond, crontabs
 BuildRequires:	dietlibc-devel
-BuildRoot:	%{_tmppath}/%{name}-buildroot
+BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
 A multiuser cron written from scratch, dcron is follows concepts
@@ -85,4 +85,3 @@ rm -rf %{buildroot}
 %{_mandir}/man1/crontab.1*
 %{_mandir}/man8/crond.8*
 %dir %attr(0755,root,root) /var/spool/dcron/crontabs
-
