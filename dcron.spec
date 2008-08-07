@@ -1,7 +1,7 @@
 Summary:	Dillon's Cron Daemon
 Name:		dcron
 Version:	3.2
-Release:	%mkrel 2
+Release:	%mkrel 3
 License:	GPL+
 Group:		System/Servers
 URL:		http://apollo.backplane.com/FreeSrc/
