@@ -1,7 +1,7 @@
 Summary:	Dillon's Cron Daemon
 Name:		dcron
 Version:	3.2
-Release:	%mkrel 3
+Release:	%mkrel 4
 License:	GPL+
 Group:		System/Servers
 URL:		http://apollo.backplane.com/FreeSrc/
@@ -29,7 +29,7 @@ paid to feature development in favor of usability and reliability.
 %prep
 
 %setup -q -n dcron
-%patch0 -p1
+%patch0 -p1 -b .pidmailer
 %patch1 -p0
 
 perl -pi -e "s|VISUAL|EDITOR|g" crontab.*
