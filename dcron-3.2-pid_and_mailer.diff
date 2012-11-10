@@ -1,0 +1,227 @@
+diff -p -up dcron/crond.8.pidmailer dcron/crond.8
+--- dcron/crond.8.pidmailer	2006-04-29 19:17:00.000000000 +0200
++++ dcron/crond.8	2009-06-17 04:04:43.000000000 +0200
+@@ -4,7 +4,7 @@
+ .SH NAME
+ crond \- cron daemon (Dillon's Cron)
+ .SH SYNOPSIS
+-.B crond [-l#] [-d[#]] [-f] [-b] [-c directory]
++.B crond [-l#] [-d[#]] [-f] [-b] [-c directory] [-m mailer] [-p pidfile]
+ .SH OPTIONS
+ .B crond
+ is a background daemon that parses individual crontab files and
+@@ -30,6 +30,14 @@ specify directory containing crontab fil
+ .B "-s directory "
+ specify directory containing system-wide crontab files.  By
+ default, /etc/cron.d is checked.
++.TP 0.5i
++.B "-m mailer "
++specify program for sending mail and additional parameters which should be
++passed to it (default: "/usr/lib/sendmail -t -oem -i").
++.TP 0.5i
++.B "-p pidfile"
++specify file which the pid of crond should be written into (default:
++/var/run/dcron/dcron.pid).
+ .SH DESCRIPTION
+ .B crond 
+ is responsible for scanning the crontab files and running
+@@ -56,7 +64,8 @@ under the ownership of the daemon to pre
+ it.  Upon job completion, crond verifies the secureness of the mail file
+ and, if it has been appended to, mails to the file to user.  The
+ .B sendmail
+-program is run under the user's uid to prevent mail related security holes.  
++program or any program specified through commandline switch -m (see above) is
++run under the user's uid to prevent mail related security holes.  
+ Unlike
+ .B crontab
+ , the crond program does not leave an open descriptor to the file for the
+diff -p -up dcron/defs.h.pidmailer dcron/defs.h
+--- dcron/defs.h.pidmailer	2006-05-16 18:24:45.000000000 +0200
++++ dcron/defs.h	2009-06-17 04:07:36.000000000 +0200
+@@ -28,7 +28,7 @@
+ #define arysize(ary)	(sizeof(ary)/sizeof((ary)[0]))
+ 
+ #ifndef CRONTABS
+-#define CRONTABS	"/var/spool/cron/crontabs"
++#define CRONTABS	"/var/spool/dcron/crontabs"
+ #endif
+ #ifndef SCRONTABS
+ #define SCRONTABS	"/etc/cron.d"
+@@ -58,7 +58,10 @@
+ #define MAXLINES	256		/* max lines in non-root crontabs */
+ #endif
+ #ifndef PATH_VI
+-#define PATH_VI		"/usr/bin/vi"	/* location of vi	*/
++#define PATH_VI		"/bin/vi"	/* location of vi	*/
++#endif
++#ifndef PIDFILE
++#define PIDFILE		"/var/run/dcron/dcron.pid"
+ #endif
+ 
+ #define VERSION	"V3.2"
+diff -p -up dcron/job.c.pidmailer dcron/job.c
+--- dcron/job.c.pidmailer	2006-04-29 18:49:48.000000000 +0200
++++ dcron/job.c	2009-06-17 04:04:43.000000000 +0200
+@@ -10,6 +10,9 @@
+ 
+ Prototype void RunJob(CronFile *file, CronLine *line);
+ Prototype void EndJob(CronFile *file, CronLine *line);
++Prototype void GetMailer(char *cmdline);
++
++char **mailer = NULL;
+ 
+ void
+ RunJob(CronFile *file, CronLine *line)
+@@ -30,7 +33,7 @@ RunJob(CronFile *file, CronLine *line)
+ 
+     if (mailFd >= 0) {
+ 	line->cl_MailFlag = 1;
+-	fdprintf(mailFd, "To: %s\nSubject: cron: %s\n\n", 
++	printffd(mailFd, "To: %s\nSubject: cron: %s\n\n", 
+ 	    file->cf_UserName,
+ 	    line->cl_Shell
+ 	);
+@@ -91,7 +94,7 @@ RunJob(CronFile *file, CronLine *line)
+ 	    file->cf_UserName,
+ 	    line->cl_Shell
+ 	);
+-	fdprintf(1, "Exec failed: /bin/sh -c %s\n", line->cl_Shell);
++	printffd(1, "Exec failed: /bin/sh -c %s\n", line->cl_Shell);
+ 	exit(0);
+     } else if (line->cl_Pid < 0) {
+ 	/*
+@@ -209,13 +212,21 @@ EndJob(CronFile *file, CronLine *line)
+ 	dup2(1, 2);
+ 	close(mailFd);
+ 
++	if (mailer) {
++	    execv(mailer[0], mailer);
++	    logfd(8, "unable to exec %s, user %s, "
++		"using default mailer " SENDMAIL "\n",
++		mailer[0],
++		file->cf_UserName
++	    );
++	    free(mailer);
++	}
+ 	execl(SENDMAIL, SENDMAIL, SENDMAIL_ARGS, NULL, NULL);
+ 	/*
+ 	 * note: 8 is a file descriptor
+ 	 */
+-	logfd(8, "unable to exec %s %s, user %s, output to sink null", 
+-	    SENDMAIL,
+-	    SENDMAIL_ARGS,
++	logfd(8,
++	    "unable to exec " SENDMAIL ", user %s, output to sink null\n", 
+ 	    file->cf_UserName
+ 	);
+ 	exit(0);
+@@ -233,3 +244,40 @@ EndJob(CronFile *file, CronLine *line)
+     close(mailFd);
+ }
+ 
++/*
++ * GetMailer - parses cmdline argument (-m) and sets mailer (to NULL on failure)
++ */
++
++void
++GetMailer(char *cmdline)
++{
++  int argc = 0; /* number of arguments passed to the mail program */
++  char *space = cmdline;
++
++  while (space) {
++    /*
++     * get memory for the array of strings
++     */
++    if (!(mailer = realloc(mailer, (argc + 2) * sizeof(char*)))) {
++      logfd(8, "realloc failed, using default mailer " SENDMAIL "\n");
++      mailer = NULL;
++      return;
++    }
++
++    /*
++     * eg. cmdline arg (-m) = "/var/qmail/bin/qmail-inject -A -fcron"
++     * mailer[0] = "/var/qmail/bin/qmail-inject"
++     * mailer[1] = "-A"
++     * mailer[2] = "-fcron"
++     */
++    *(mailer + argc) = space;
++    ++argc;
++
++    if ((space = strchr(space, ' '))) *space++ = '\0';
++  }
++
++  /*
++   * mailer[3] = NULL
++   */
++  *(mailer + argc) = NULL;
++}
+diff -p -up dcron/main.c.pidmailer dcron/main.c
+--- dcron/main.c.pidmailer	2006-04-29 18:47:26.000000000 +0200
++++ dcron/main.c	2009-06-17 04:04:43.000000000 +0200
+@@ -27,6 +27,7 @@ const char  *CDir = CRONTABS;
+ const char  *SCDir = SCRONTABS;
+ uid_t DaemonUid;
+ int InSyncFileRoot;
++char *pidfile = PIDFILE;
+ 
+ int
+ main(int ac, char **av)
+@@ -65,6 +66,14 @@ main(int ac, char **av)
+ 	    case 's':
+ 		SCDir = (*ptr) ? ptr : av[++i];
+ 		continue;
++	    case 'm':
++		if (!*ptr) ptr = av[++i];
++		GetMailer(ptr);
++		continue;
++	    case 'p':
++		if (!*ptr) ptr = av[++i];
++		pidfile = ptr;
++		continue;
+ 	    default:
+ 		break;
+ 	    }
+@@ -80,7 +89,7 @@ main(int ac, char **av)
+         if (i > ac)
+             puts("expected argument for option");
+ 	printf("dcron " VERSION "\n");
+-	printf("dcron -d[#] -l[#] -f -b -c dir -s dir\n");
++	printf("dcron -d[#] -l[#] -f -b -c dir -s dir -m mailer -p pidfile\n");
+ 	exit(1);
+     }
+ 
+@@ -122,6 +131,12 @@ main(int ac, char **av)
+         }
+         if (pid > 0)
+             exit(0);
++
++	if ((fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC,
++	  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)) >= 0) {
++	    printffd(fd, "%i\n", getpid());
++	    close(fd);
++	}
+     }
+ 
+     /* 
+diff -p -up dcron/subs.c.pidmailer dcron/subs.c
+--- dcron/subs.c.pidmailer	2006-04-27 19:29:56.000000000 +0200
++++ dcron/subs.c	2009-06-17 04:08:52.000000000 +0200
+@@ -11,7 +11,7 @@
+ Prototype void logn(int level, const char *ctl, ...);
+ Prototype void log9(const char *ctl, ...);
+ Prototype void logfd(int fd, const char *ctl, ...);
+-Prototype void fdprintf(int fd, const char *ctl, ...);
++Prototype void printffd(int fd, const char *ctl, ...);
+ Prototype int ChangeUser(const char *user, short dochdir);
+ Prototype void vlog(int level, int fd, const char *ctl, va_list va);
+ Prototype int slog(char *buf, const char *ctl, int nmax, va_list va, short useDate);
+@@ -47,7 +47,7 @@ logfd(int fd, const char *ctl, ...)
+ }
+ 
+ void 
+-fdprintf(int fd, const char *ctl, ...)
++printffd(int fd, const char *ctl, ...)
+ {
+     va_list va;
+     char buf[2048];

@@ -1,0 +1,103 @@
+Index: database.c
+--- database.c.orig	2006-05-16 18:20:01.000000000 +0200
++++ database.c	2006-10-24 09:04:26.497144006 +0200
+@@ -225,7 +225,7 @@
+ 		if (--maxEntries == 0)
+ 		    break;
+ 
+-		bzero(&line, sizeof(line));
++		memset(&line, 0, sizeof(line));
+ 
+ 		if (DebugOpt)
+ 		    log9("User %s Entry %s\n", userName, buf);
+Index: defs.h
+--- defs.h.orig	2006-05-16 18:24:45.000000000 +0200
++++ defs.h	2006-10-24 09:05:15.063043609 +0200
+@@ -22,7 +22,7 @@
+ #include <pwd.h>
+ #include <unistd.h>
+ #include <grp.h>
+-#include <err.h>
++#include <sys/termios.h>
+ 
+ #define Prototype extern
+ #define arysize(ary)	(sizeof(ary)/sizeof((ary)[0]))
+@@ -93,3 +96,6 @@
+ 
+ #include "protos.h"
+ 
++#define errx my_errx
++#define asprintf my_asprintf
++
+Index: subs.c
+--- subs.c.orig	2006-04-27 19:29:56.000000000 +0200
++++ subs.c	2006-10-24 09:13:53.222197790 +0200
+@@ -15,6 +15,8 @@
+ Prototype int ChangeUser(const char *user, short dochdir);
+ Prototype void vlog(int level, int fd, const char *ctl, va_list va);
+ Prototype int slog(char *buf, const char *ctl, int nmax, va_list va, short useDate);
++Prototype void my_errx(int eval, const char *fmt, ...);
++Prototype int my_asprintf(char **ret, const char *fmt, ...);
+ 
+ void 
+ log9(const char *ctl, ...)
+@@ -79,7 +81,7 @@
+ 
+     buf[0] = 0;
+     if (useDate)
+-	strftime(buf, 128, "%d-%b-%y %H:%M  ", tp);
++	strftime(buf, 128, "%d-%b-%Y %H:%M  ", tp);
+     vsnprintf(buf + strlen(buf), nmax, ctl, va);
+     return(strlen(buf));
+ }
+@@ -97,9 +99,15 @@
+         logn(9, "failed to get uid for %s", user);
+         return(-1);
+     }
+-    setenv("USER", pas->pw_name, 1);
+-    setenv("HOME", pas->pw_dir, 1);
+-    setenv("SHELL", "/bin/sh", 1);
++    {
++        char buf[256];
++        snprintf(buf, sizeof(buf), "USER=%s", pas->pw_name);
++        putenv(buf);
++        snprintf(buf, sizeof(buf), "HOME=%s", pas->pw_dir);
++        putenv(buf);
++        snprintf(buf, sizeof(buf), "SHELL=%s", "/bin/sh");
++        putenv(buf);
++    }
+ 
+     /*
+      * Change running state to the user in question
+@@ -143,3 +151,31 @@
+ }
+ 
+ #endif
++
++void errx(int eval, const char *fmt, ...)
++{
++    va_list ap;
++
++    va_start(ap, fmt);
++    vfprintf(stderr, fmt, ap);
++    va_end(ap);
++    exit(eval);
++}
++
++int asprintf(char **ret, const char *fmt, ...)
++{
++    va_list ap;
++    int l;
++
++    va_start(ap, fmt);
++    l = vsnprintf(NULL, 0, fmt, ap);
++    if (((*ret) = (char *)malloc(l+1)) == NULL) {
++        va_end(ap);
++        *ret = NULL;
++        return -1;
++    }
++    l = vsnprintf((*ret), l+1, fmt, ap);
++    va_end(ap);
++    return l;
++}
++
