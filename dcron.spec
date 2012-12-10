@@ -85,3 +85,46 @@ rm -rf %{buildroot}
 %{_mandir}/man1/crontab.1*
 %{_mandir}/man8/crond.8*
 %dir %attr(0755,root,root) /var/spool/dcron/crontabs
+
+
+%changelog
+* Wed Jun 17 2009 Jérôme Brenier <incubusss@mandriva.org> 3.2-4mdv2010.0
++ Revision: 386539
+- rediff PO
+
+* Thu Aug 07 2008 Thierry Vignaud <tv@mandriva.org> 3.2-3mdv2009.0
++ Revision: 266556
+- rebuild early 2009.0 package (before pixel changes)
+
+* Tue Jun 10 2008 Oden Eriksson <oeriksson@mandriva.com> 3.2-2mdv2009.0
++ Revision: 217538
+- rebuilt against dietlibc-devel-0.32
+
+  + Olivier Blin <oblin@mandriva.com>
+    - restore BuildRoot
+
+  + Thierry Vignaud <tv@mandriva.org>
+    - kill re-definition of %%buildroot on Pixel's request
+
+* Fri Aug 17 2007 Adam Williamson <awilliamson@mandriva.org> 3.2-1mdv2008.0
++ Revision: 64681
+- provide cron-daemon
+- use Fedora license policy (GPL+)
+- update patch1 from openpkg
+- rediff patch0
+- new release 3.2
+
+
+* Fri Dec 22 2006 Oden Eriksson <oeriksson@mandriva.com> 2.9-2mdv2007.0
++ Revision: 101636
+- Import dcron
+
+* Wed Sep 13 2006 Oden Eriksson <oeriksson@mandriva.com> 2.9-2mdv2007.0
+- rebuild
+
+* Sun Jul 31 2005 Oden Eriksson <oeriksson@mandriva.com> 2.9-1mdk
+- initial Mandriva package
+- used parts from my first annvix package and also ideas from
+  the latest annvix package (thanks vdanen)
+- added P0 and P1 which originates from openpkg and FJO
+
