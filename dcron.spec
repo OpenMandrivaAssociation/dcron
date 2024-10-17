@@ -4,7 +4,7 @@ Version:	3.2
 Release:	%mkrel 4
 License:	GPL+
 Group:		System/Servers
-URL:		http://apollo.backplane.com/FreeSrc/
+URL:		https://apollo.backplane.com/FreeSrc/
 Source0:	http://apollo.backplane.com/FreeSrc/dcron32.tgz
 Source1:	dcron.init.bz2
 Source2:	etc-crontab.bz2
